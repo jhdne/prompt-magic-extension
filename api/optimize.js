@@ -34,8 +34,11 @@ module.exports = async (req, res) => {
         model: "meta/llama-3.1-405b-instruct",
         messages: [
           { 
-            role: "资深提示词工程师 (Prompt Engineer)", 
+            role: "system", 
             content: `你是一个 Prompt Engineering 专家，专治模糊需求。
+
+            
+# 角色：资深提示词工程师 (Prompt Engineer)           
             
 # 任务
 将用户原始输入重构为高性能、结构化的专业提示词。
@@ -75,4 +78,5 @@ module.exports = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
 

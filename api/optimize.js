@@ -1,29 +1,17 @@
 const fetch = require('node-fetch');
 
 module.exports = async (req, res) => {
-  // 1. 响应头配置：解决全平台跨域问题
   res.setHeader('Access-Control-Allow-Origin', '*'); 
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  // 处理预检请求
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: "Method not allowed" });
 
-  // 仅允许 POST 请求逻辑
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
-  // 获取请求体并进行安全检查
   const { originalText } = req.body || {};
-  if (!originalText) {
-    return res.status(400).json({ error: "No text provided" });
-  }
+  if (!originalText) return res.status(400).json({ error: "No text provided" });
 
   try {
-    // 2. 调用 NVIDIA API
     const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -34,49 +22,42 @@ module.exports = async (req, res) => {
         model: "meta/llama-3.1-405b-instruct",
         messages: [
           { 
-            role: "system", 
-            content: `你是一个 Prompt Engineering 专家，专治模糊需求。
-
-            
-# 角色：资深提示词工程师 (Prompt Engineer)           
+            role: "system", // 必须是 system
+            content: `你是一个资深提示词工程师 (Prompt Engineer)，专治模糊需求。
             
 # 任务
 将用户原始输入重构为高性能、结构化的专业提示词。
 
 # 执行流程
 1. **定领域**：提取关键词确定领域（技术/商业/创意/学术）。
-2. **调结构**：按场景侧重模块：编程侧重输入与异常；创作侧重风格与情感；分析侧重逻辑链。
+2. **调结构**：按场景侧重模块。
 3. **填内容**：生成核心模块（角色/任务/流程/输出标准/约束）。
-4. **做质检**：将“适当、优质”等模糊词替换为具体的量化标准。
+4. **做质检**：将模糊词替换为具体的量化标准。
 
 # 输出标准
 - **格式**：使用 Markdown 三级结构（#角色/##能力/###步骤）。
-- **质量**：必须包含具体的“负面约束”（AI 不能做什么）和“量化指标”。
+- **质量**：必须包含具体的“负面约束”和“量化指标”。
 - **要求**：直接输出重构后的内容，严禁输出任何分析过程、开场白或解释文字。
 
 # 视觉设计说明：
-极简符号化：使用 🔘、●、🛠️、🚦 等图标作为功能区锚点，色彩克制，重点突出。
-卡片式封装：利用 ━━━━━━━━ 模拟 UI 分割线，使“输出模板”区域具有独立的视觉重心。
-高压信息密度：取消了段落间的长距离空行，通过加粗标题和列表缩进实现“紧凑而不拥挤”的科学排版。 
+使用 🔘、●、🛠️、🚦 等图标作为功能区锚点。使用 ━━━━━━━━ 模拟 UI 分割线。` 
           },
           { role: "user", content: `原始需求：${originalText}` }
         ],
-        temperature: 0.5 // 降低随机性，确保结构严谨
+        temperature: 0.5 
       })
     });
 
     const data = await response.json();
     
+    // 增加数据结构检查
     if (data.choices && data.choices[0]) {
-      // 成功返回重构后的高质量 Prompt
       res.status(200).json({ optimizedText: data.choices[0].message.content });
     } else {
+      // 如果报错，把具体错误透传出来方便调试
       res.status(500).json({ error: "NVIDIA API error", details: data });
     }
   } catch (err) {
-    console.error("Server Error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 };
-
-

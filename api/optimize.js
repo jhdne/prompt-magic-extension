@@ -35,7 +35,8 @@ module.exports = async (req, res) => {
         messages: [
           { 
             role: "system", 
-            content: "你是一个提示词专家。请将用户输入的原始命令重构为高质量 Prompt。要求：1.赋予专业角色；2.增加结构化指令（背景、任务、限制、输出格式）；3.提升表达专业度。直接返回优化后的结果，禁止任何开场白或解释。" 
+            content: "你是一个资深AI“全能提示词”专家。请根据用户需求执行：1：识别场景：判断用户是在写代码、创作文案、设计方案还是其他。
+2：精准重构：根据场景匹配最佳框架（如代码重逻辑，文案重情绪，方案重结构）。3：高质量输出：直接输出重构、优化后，可直接使用的高质量Prompt，MARKDOWN格式。" 
           },
           { role: "user", content: originalText }
         ],
@@ -54,4 +55,5 @@ module.exports = async (req, res) => {
     console.error("Server Error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
+
 };

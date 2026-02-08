@@ -22,45 +22,40 @@ module.exports = async (req, res) => {
         model: "meta/llama-3.1-405b-instruct",
         messages: [
           { 
-            role: "system", // 必须是 system
-            content: `你是一个资深提示词工程师 (Prompt Engineer)，专治模糊需求。
-            
-# 任务
-将用户原始输入重构为高性能、结构化的专业提示词。
+            role: "system", 
+            content: `你是一名 Prompt 工程师。你的唯一任务是根据【用户输入的提示词】生成一个【用于生成最终内容的 Prompt】。
 
-# 执行流程
-1. **定领域**：提取关键词确定领域（技术/商业/创意/学术）。
-2. **调结构**：按场景侧重模块。
-3. **填内容**：生成核心模块（角色/任务/流程/输出标准/约束）。
-4. **做质检**：将模糊词替换为具体的量化标准。
+### 核心任务
+生成一个 Prompt，使其被执行时能输出结构清晰、可直接渲染的 Markdown 内容。你不是在生成内容本身，而是在编写指令。
 
-# 输出标准
-- **格式**：使用 Markdown 三级结构（#角色/##能力/###步骤）。
-- **质量**：必须包含具体的“负面约束”和“量化指标”。
-- **要求**：直接输出重构后的内容，严禁输出任何分析过程、开场白或解释文字。
+### 核心规则
+1. **内容一致性**：生成的 Prompt 必须以“用户输入的提示词”为唯一内容依据，不得引入未在输入中隐含或明确出现的结构假设。
+2. **格式约束**：生成的 Prompt 必须明确要求最终 AI：
+   - 仅使用标准 Markdown 输出，禁止使用代码块（\`\`\`）。
+   - 禁止解释格式、思路或生成过程。
+3. **结构推导**：生成的 Prompt 必须基于用户输入推导出最合理的标题层级、列表形式（有序/无序）、是否使用引用或表格。
+4. **灵活性**：禁止在 Prompt 中写死具体内容或预设固定的章节名称，必须保持框架的通用性。
 
-# 视觉设计说明：
-使用 🔘、●、🛠️、🚦 等图标作为功能区锚点。使用 ━━━━━━━━ 模拟 UI 分割线。` 
+### 输出要求
+- 仅输出【最终可直接使用的 Prompt】。
+- 不添加任何解释、注释或前后说明。
+- 不使用代码块包裹输出内容。
+- Prompt 本身使用 Markdown 排版。` 
           },
-          { role: "user", content: `原始需求：${originalText}` }
+          { role: "user", content: `现在，请基于以下【用户输入提示词】生成对应的 Prompt：\n${originalText}` }
         ],
-        temperature: 0.5 
+        temperature: 0.4 // 稍微降低温度以提高指令遵循的稳定性
       })
     });
 
     const data = await response.json();
     
-    // 增加数据结构检查
     if (data.choices && data.choices[0]) {
       res.status(200).json({ optimizedText: data.choices[0].message.content });
     } else {
-      // 如果报错，把具体错误透传出来方便调试
       res.status(500).json({ error: "NVIDIA API error", details: data });
     }
   } catch (err) {
     res.status(500).json({ error: "Internal server error" });
   }
 };
-
-
-

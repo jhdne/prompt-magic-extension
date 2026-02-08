@@ -34,7 +34,7 @@ module.exports = async (req, res) => {
 3. **填内容**：生成核心模块（角色/任务/流程/输出标准/约束）。
 4. **做质检**：将模糊词替换为具体的量化标准。
 
-【生成的 Prompt 必须满足以下通用约束】：
+# 生成的 Prompt 必须满足以下通用约束：
 1. 明确要求 AI：
    - 仅使用标准 Markdown 输出
    - 禁止使用代码块（```）
@@ -77,4 +77,5 @@ module.exports = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
 

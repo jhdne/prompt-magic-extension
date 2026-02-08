@@ -1,9 +1,7 @@
-// 注意：如果你使用 node-fetch v3，必须使用 import。
-// 如果你坚持使用 require，请确保安装的是 v2 版本：npm install node-fetch@2
 const fetch = require('node-fetch');
 
 module.exports = async (req, res) => {
-  // CORS 设置
+  // 1. 设置响应头，处理跨域
   res.setHeader('Access-Control-Allow-Origin', '*'); 
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -15,7 +13,6 @@ module.exports = async (req, res) => {
   if (!originalText) return res.status(400).json({ error: "No text provided" });
 
   try {
-    // 修复点 1：清理 URL，去除 Markdown 链接干扰
     const API_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 
     const response = await fetch(API_URL, {
@@ -29,45 +26,49 @@ module.exports = async (req, res) => {
         messages: [
           { 
             role: "system", 
-            content: `你是一名顶级的 Prompt Engineer 专家。任务：将用户输入重构为纯净、严谨、数字层级的专业文档。
+            content: `你是一名极致追求排版美学的顶级 Prompt Engineer。你的任务是重构用户输入，输出一份具备公文级对齐规范的纯文本 Prompt 文档。
 
-### 📋 排版规范：
-1. 禁止代码块：严禁输出任何 \`\`\` 符号。直接输出纯文本。
-2. 数字层级：统一使用数字编号（1, 1.1, 1.2）。禁止使用 # 标题、Emoji 或加粗符号。
-3. 间距控制：
-   - 模块内正文：单倍行距（行间无空行）。
-   - 模块间：在两个数字模块（如 1 与 2）之间必须插入两个换行符，确保 1.5 倍的视觉间距。
+### 📏 视觉排版规范（必须严格遵守）：
+1. **模块标识**：一级标题必须使用 [ 数字 ] 格式，例如：[ 1 ] 角色设定。
+2. **强制缩进**：所有二级子项（1.1, 1.2 等）必须在行首添加 4 个半角空格，以确保它们与主标题产生视觉错位对齐。
+3. **行间距逻辑**：
+   - **模块内**：1.1 与 1.2 之间执行单倍行距，行与行之间不留空行。
+   - **模块间**：在两个主模块（例如 [ 1 ] 与 [ 2 ]）之间，必须插入两个完整的换行符，形成 1.5 倍至 2 倍的视觉呼吸感。
+4. **禁止符号**：严禁使用加粗 (**)、代码块 (\`\`\`)、Markdown 标题 (#) 或任何 Emoji。
+5. **纯净输出**：直接输出重构后的文档，严禁任何开场白（如“好的”）或解释性文字。
 
-### 🧩 结构标准：
-1. 角色设定
-1.1 身份定义及专业深度。
-2. 核心任务
-2.1 任务目标及交付标准。
-3. 执行工作流
-3.1 具体的思维链条或处理步骤。
-4. 约束边界
-4.1 限制条件及负面约束。
+### 🧩 重构逻辑架构：
+[ 1 ] 角色设定
+    1.1 身份定义：基于任务目标定义专业身份。
+    1.2 专业深度：描述该角色应具备的核心知识储备。
 
-### 🚫 负面约束：
-- 严禁任何解释语、开场白或符号说明。直接输出重构内容。` 
+[ 2 ] 核心任务
+    2.1 任务目标：描述具体要解决的问题。
+    2.2 交付标准：定义输出结果的质量要求。
+
+[ 3 ] 执行工作流
+    3.1 [阶段名称]：描述第一步思维过程。
+    3.2 [阶段名称]：描述第二步处理逻辑。
+
+[ 4 ] 约束边界
+    4.1 核心限制：列出必须遵守的红线。
+    4.2 格式要求：规定最终输出的样式。` 
           },
-          { role: "user", content: `请基于以下内容生成 Prompt：\n${originalText}` }
+          { role: "user", content: `请基于以下内容生成高性能 Prompt：\n${originalText}` }
         ],
-        temperature: 0.2 
+        temperature: 0.1 // 保持极低温度以确保缩进和换行逻辑的绝对稳定
       })
     });
 
     const data = await response.json();
     
-    // 修复点 2：增强 API 返回结果的容错判断
     if (data && data.choices && data.choices[0]) {
+      // 最终返回经过美化排版的纯文本内容
       res.status(200).json({ optimizedText: data.choices[0].message.content });
     } else {
-      console.error("API Error Response:", data);
-      res.status(500).json({ error: "NVIDIA API error", details: data });
+      res.status(500).json({ error: "API Error", details: data });
     }
   } catch (err) {
-    console.error("Server Error:", err);
-    res.status(500).json({ error: "Internal server error", message: err.message });
+    res.status(500).json({ error: "Server Internal Error", message: err.message });
   }
 };

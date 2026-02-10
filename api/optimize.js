@@ -1,7 +1,6 @@
 const fetch = require('node-fetch');
 
 module.exports = async (req, res) => {
-    // 1. 响应头处理
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -22,63 +21,52 @@ module.exports = async (req, res) => {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                model: "meta/llama-3.1-405b-instruct",
+                model: "google/gemma-3n-e2b-it",
                 messages: [
                     {
                         role: "system",
-                        content: `你是一名顶尖的 Prompt 架构设计师。请根据用户输入的需求，按照以下严格的要求重构 Prompt。
+                        content: `你是一名极致冷静的Prompt架构师。你的输出必须是重构后的“最终指令文档”，严禁包含任何分析过程或元说明。
 
-### 🛠 第一阶段：意图识别与框架选择
-观察用户需求，从以下三个架构中选择最匹配的一个：
-- [架构A：专业生产力] 适用于：代码、分析、报告。核心强调：逻辑严密性、边界条件。
-- [架构B：创意内容表达] 适用于：文案、剧本、设计建议。核心强调：感官细节、情感张力。
-- [架构C：策略咨询引导] 适用于：决策、策划、复杂方案。核心强调：多维视角、可行性评估。
+### 🚨 绝对禁令（执行则扣分）：
+1. 严禁输出：任何关于“意图识别”、“阶段分析”、“框架选择”的文字。
+2. 严禁使用：# 号、Emoji、加粗 (**)、代码块、任何装饰符。
+3. 严禁模版化：不要说“定义一个角色”，要直接写出“你是一名资深XX”。
 
-### 📐 第二阶段：排版排版规范（高压线）
-1. 模块标识：使用 [ 数字 ] 标题（如 [ 1 ] 角色设定）。
-2. 缩进控制：二级子项行首必须添加 4 个半角空格。
-3. 密度控制（必须执行）：
-   - 模块内部（如 1.1 与 1.2 之间）严禁任何空行。
-   - 仅在 [ 数字 ] 标题上方保留一个空行，下方立即紧跟内容。
-4. 符号禁令：严禁 Markdown 加粗 (**)、代码块 (\`\`\`)、# 号标题或 Emoji。
+### 📏 排版对齐规范：
+- [ 1 ] 模块标题与下方内容【禁止空行】。
+- 二级项行首固定【4个半角空格】。
+- 仅模块间保留【一个空行】。
 
-### 🧩 第三阶段：模块动态构建指南
-[ 1 ] 角色设定：
-    1.1 身份设定：基于任务目标定义一个具备验证背景的该领域前TOP1%专业专家身份。
-    1.2 认知地图：描述该专家分析问题的方法论（如：第一性原理、SWOT等）。
-[ 2 ] 任务目标：
-    2.1 终极目标：透视用户表层需求后的深层业务目的，将用户模糊需求转化为具备专家思维链的高性能Prompt。
-    2.2 交付标准：量化成功的指标（如：代码需考虑内存泄漏、文案需达到 3% 转化率风格）。
-[ 3 ] 逻辑推理路径（针对逻辑/知识类必选）
-    3.1 思考规约：要求 AI 在回答前必须先列出思维大纲或逻辑步骤。   
-[ 4 ] 动态模块（根据第一阶段架构三选一）：
-    - (若选架构A) [ 4 ] 执行规约：包含错误处理、输入验证、边界防御。
-    - (若选架构B) [ 4 ] 语境设定：包含核心意象、受众心理画像、叙事视角。
-    - (若选架构C) [ 4 ] 评估维度：包含成本限制、潜在风险、实施阶段建议。
-[ 5 ] 约束红线：列出该领域最易犯的低级错误并强制禁止。规定语气、专业术语密度等。
-### ⚠️ 输出约束
-直接输出 Prompt 内容。严禁任何“好的”、“这是为您生成的”等废话。`
+### 🧩 原子逻辑补全：
+- [ 1 ] 角色设定：直接赋予具体、高级的专家身份及其特有的思维模型。
+- [ 2 ] 核心任务：将模糊需求转化为具体的、可量化的行动方案。
+- [ 3 ] 逻辑路径：要求执行者必须遵循的底层思考链路。
+- [ 4 ] 约束红线：列出该领域最易犯的低级错误并强制禁止。`
                     },
                     {
                         role: "user",
-                        content: `请基于以下原始需求，选择最匹配的架构并生成高性能 Prompt：\n\n${originalText}`
+                        content: `请直接输出重构后的结构化Prompt，不准有任何废话。需求内容：\n\n${originalText}`
                     }
                 ],
-                temperature: 0.3, 
-                max_tokens: 2500,
-                top_p: 0.8
+                temperature: 0.1, // 降低随机性
+                top_p: 0.1,      // 极度收窄采样，锁定格式
+                max_tokens: 2048
             })
         });
 
         const data = await response.json();
 
         if (data && data.choices && data.choices[0]) {
-            res.status(200).json({ optimizedText: data.choices[0].message.content });
+            // 后处理：移除可能出现的任何 Markdown 符号（双保险）
+            let finalOutput = data.choices[0].message.content
+                .replace(/[#*`]/g, '')
+                .trim();
+            
+            res.status(200).json({ optimizedText: finalOutput });
         } else {
-            res.status(500).json({ error: "NVIDIA API 响应异常", details: data });
+            res.status(500).json({ error: "API Error", details: data });
         }
     } catch (err) {
-        res.status(500).json({ error: "服务器内部错误", message: err.message });
+        res.status(500).json({ error: "Internal Error", message: err.message });
     }
 };
-

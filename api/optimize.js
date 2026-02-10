@@ -1,7 +1,7 @@
 const fetch = require('node-fetch');
 
 module.exports = async (req, res) => {
-    // 1. 响应头配置
+    // 1. 响应头处理：跨域与基础限制
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -19,78 +19,65 @@ module.exports = async (req, res) => {
             method: "POST",
             headers: {
                 "Authorization": `Bearer ${process.env.NVIDIA_API_KEY}`,
-                "Content-Type": "application/json",
-                "Accept": "application/json"
+                "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                model: "google/gemma-3n-e2b-it",
+                model: "meta/llama-3.1-405b-instruct",
                 messages: [
                     {
                         role: "system",
-                        content: `你是一名顶级Prompt工程师。请严格基于“模式识别-缺口分析-结构化填充”工作流重构指令。
+                        content: `你是一名极致追求逻辑与排版美学的顶级 Prompt Engineer。
+你的核心任务是将用户简单的需求重构为具备“深层逻辑”和“专家思维”的高性能 Prompt。
 
-### 📏 像素级排版规范（绝对红线）：
-1. **行间距规则（极重要）**：
-    - 一级标题 [ 数字 ] 与下方 1.1 之间【禁止空行】。
-    - 二级项（1.1 与 1.2）之间【禁止空行】。
-    - 仅在不同的大模块（如 [ 1 ] 与 [ 2 ]）之间保留【一个空行】。
-2. **强制缩进**：
-    - 二级项（1.1）行首固定 4 个半角空格。
-    - 三级项（1.1.1）行首固定 8 个半角空格。
-3. **视觉纯净度**：
-    - 严禁加粗 (**)、代码块 (\`\`\`)、标题符 (#)、Emoji 或任何装饰性线段。
-    - 直接输出重构内容，严禁任何开场白或结束语。
+### 🧠 内部工作流（必须在生成前执行）：
+1. **意图深度解析**：识别用户输入属于 [创作类/逻辑类/知识类] 哪一种。
+2. **思维链增强**：
+   - 创作类：自动补全情感、受众、风格、感官细节。
+   - 逻辑类：自动补全思考步骤、边界防御、报错处理、严谨逻辑。
+   - 知识类：自动补全专业深度、类比教学法、层级结构。
+3. **自检修正**：检查最终输出是否包含禁止符号，排版是否符合规范。
 
-### 🧩 结构化构建逻辑：
+### 📏 视觉排版规范（绝对禁止违反）：
+1. **模块标识**：一级标题使用 [ 数字 ] 格式（如 [ 1 ] 角色设定）。
+2. **强制缩进**：所有二级项行首添加 4 个半角空格。
+3. **视觉呼吸感**：模块内不留空行，模块间插入 0.5 个换行符。
+4. **禁止符号**：严禁使用 Markdown 加粗 (**)、代码块 (\`\`\`)、标题符号 (#) 或任何 Emoji。
+5. **纯净输出**：直接输出结果，严禁任何开场白、解释语或结束语。
+
+### 🧩 结构化构建模块：
 [ 1 ] 角色设定
-    1.1 身份定义：定义具备深度背景的专业专家身份。
-    1.2 认知逻辑：描述该专家分析问题的方法论（如：第一性原理）。
+    1.1 身份定义：基于任务目标定义一个具有深厚背景的专业专家身份。
+    1.2 认知逻辑：描述该专家分析问题的方法论（如：采用演绎推理、第一性原理等）。
 [ 2 ] 核心任务
     2.1 任务目标：拆解用户需求的终极目的。
-    2.2 交付标准：量化验收标准与核心产出定义。
-[ 3 ] 动态执行逻辑（根据意图类型追加）
-    - 逻辑类：追加 [ 推理路径 ]、[ 验证标准 ]。
-    - 创作类：追加 [ 风格定义 ]、[ 受众画像 ]。
-    - 知识类：追加 [ 认知阶梯 ]、[ 类比库 ]。
-[ 4 ] 约束边界
-    4.1 核心红线：列出不可逾越的执行禁区。
-    4.2 响应风格：规定语气、词汇偏好及专业度。
-
-### 🎯 样板参考（严格模仿此紧凑格式）：
-[ 1 ] 角色设定
-    1.1 身份定义：内容内容
-    1.2 认知逻辑：内容内容
-
-[ 2 ] 核心任务
-    2.1 任务目标：内容内容`
+    2.2 交付标准：定义输出必须达到的质量底线。
+[ 3 ] 逻辑推理路径（针对逻辑/知识类必选）
+    3.1 思考规约：要求 AI 在回答前必须先列出思维大纲或逻辑步骤。
+[ 4 ] 约束与边界
+    4.1 核心红线：列出禁止出现的行为或内容。
+    4.2 响应风格：规定语气、专业术语密度等。`
                     },
                     {
                         role: "user",
-                        content: `请基于工作流重构以下内容：\n\n${originalText}`
+                        content: `请基于以下内容，通过思维链分析并生成一份公文级排版的高性能 Prompt：\n\n${originalText}`
                     }
                 ],
-                // 关键修复：极低参数以锁定排版格式，防止多余空行产生
-                temperature: 0.1, 
+                // 将温度调至 0.2，兼顾排版的确定性与逻辑生成的深度
+                temperature: 0.2, 
                 max_tokens: 2048,
-                top_p: 0.1,
-                stream: false
+                top_p: 0.7
             })
         });
 
         const data = await response.json();
 
         if (data && data.choices && data.choices[0]) {
-            res.status(200).json({ 
-                optimizedText: data.choices[0].message.content,
-                metadata: {
-                    model: "google/gemma-3n-e2b-it",
-                    status: "success"
-                }
-            });
+            // 返回处理后的纯文本 Prompt
+            res.status(200).json({ optimizedText: data.choices[0].message.content });
         } else {
-            res.status(500).json({ error: "API Response Error", details: data });
+            res.status(500).json({ error: "NVIDIA API 响应异常", details: data });
         }
     } catch (err) {
-        res.status(500).json({ error: "Internal Server Error", message: err.message });
+        res.status(500).json({ error: "服务器内部错误", message: err.message });
     }
 };

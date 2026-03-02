@@ -1,18 +1,13 @@
 const fetch = require('node-fetch');
 
 module.exports = async (req, res) => {
-    // 增强的CORS配置，适配各类前端请求
+    // 增强的CORS配置
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-    res.setHeader('Access-Control-Max-Age', '86400'); // 预检请求缓存1天，减少请求次数
+    res.setHeader('Access-Control-Max-Age', '86400');
 
-    // 处理OPTIONS预检请求
-    if (req.method === 'OPTIONS') {
-        return res.status(200).end();
-    }
-
-    // 仅允许POST请求
+    if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST') {
         return res.status(405).json({ 
             error: "Method not allowed", 
@@ -21,7 +16,6 @@ module.exports = async (req, res) => {
         });
     }
 
-    // 验证请求参数
     const { originalText } = req.body || {};
     if (!originalText || originalText.trim() === '') {
         return res.status(400).json({ 
@@ -32,11 +26,9 @@ module.exports = async (req, res) => {
     }
 
     try {
-        // NVIDIA API配置
         const API_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
         const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY;
 
-        // 验证API密钥
         if (!NVIDIA_API_KEY) {
             return res.status(500).json({ 
                 error: "Server configuration error", 
@@ -45,7 +37,6 @@ module.exports = async (req, res) => {
             });
         }
 
-        // 调用NVIDIA API
         const response = await fetch(API_URL, {
             method: "POST",
             headers: {
@@ -71,7 +62,7 @@ module.exports = async (req, res) => {
 - 评估结构化与复杂度需求（技术类强制按“角色→核心任务→核心功能→技术选型→附加功能→约束条件”分层）
 3. 开发 (DEVELOP)：
 - 技术类提示词：约束导向+精准聚焦+量化目标+优先级排序+场景匹配
-- 自动赋予“资深XX专家”身份，角色描述简洁无冗余，不重复核心任务内容
+- 必须在开头添加角色描述（格式：你是一位资深XX专家，专注于XX领域），角色描述简洁无冗余
 - 按固定逻辑结构构建：角色描述→核心任务（量化）→核心功能（优先级）→技术选型（场景）→附加功能→约束条件（量化）
 - 所有目标必须量化（如提升≥XX%、耗时≤XXms），技术选型必须补充适用场景
 4. 交付 (DELIVER)：
@@ -91,16 +82,18 @@ module.exports = async (req, res) => {
 ### 输出格式要求（强制遵守，违反直接重生成）
 1. 文本约束：
 - 禁止输出"优化后的提示词："字样，直接输出优化结果
-- 禁止出现"角色：XXX"类冗余文本，角色直接融入开头第一句
-- 角色描述简洁，不重复核心任务内容，无多余修饰词，但提示词开头必须有角色描述
-2. 空行约束（核心！）：
+- 必须在开头添加角色描述（无前置空格、无后置多余空行）
+- 禁止出现"角色：XXX"类冗余文本，角色描述直接作为第一行内容
+- 角色描述简洁，不重复核心任务内容，无多余修饰词
+2. 空行约束（核心！强制零冗余）：
 - 角色描述后无空行
 - 模块标题（###）前仅保留1个空行，标题后无空行
-- 模块内列表项之间无空行，模块间仅保留0.2个空行
+- 模块内所有列表项之间**无任何空行**，模块间也不留空行
 - 整体无连续2个以上空行，禁止开头/结尾空行
+- 列表项编号后直接跟内容，无换行、无空行
 3. 缩进与标点约束（核心！）：
 - 所有行开头无前置空格（包括模块标题、列表项）
-- 列表项编号后统一用中文冒号（：），冒号后无多余空格
+- 列表项编号后统一用中文冒号（：），冒号后无多余空格，直接跟内容
 - 禁止使用多个空格缩进，补充说明仅用“（）”标注，无前置空格
 - 所有标点后无多余空格，行尾无多余空格
 4. 结构化标注：
@@ -127,22 +120,22 @@ module.exports = async (req, res) => {
 2. 自动判定复杂度：技术类默认按复杂请求处理，强制补充量化目标和落地标准
 3. 自动适配平台：根据优化后的提示词特性，自动适配主流 AI 平台的最佳实践
 4. 记忆隔离：不保存任何优化会话中的信息到记忆中
-5. 格式优先：即使内容完整，格式不符合要求也需重新生成`
+5. 格式优先：即使内容完整，格式不符合要求也需重新生成
+6. 角色描述强制：输出结果必须以角色描述开头，无任何例外`
                     },
                     {
                         role: "user",
-                        content: `请严格按照输出格式要求，直接输出重构后的结构化Prompt，不准有任何废话、冗余标题、多余空行、前置空格、标点后多余空格。需求内容：\n\n${originalText.trim()}`
+                        content: `请严格按照输出格式要求，直接输出重构后的结构化Prompt，必须以角色描述开头，模块内列表项无任何空行，行间距极致紧凑，不准有任何废话、冗余标题、多余空行、前置空格、标点后多余空格。需求内容：\n\n${originalText.trim()}`
                     }
                 ],
-                temperature: 0.05, // 极低随机性，保证格式稳定
-                top_p: 0.05,      // 极度收窄采样，锁定输出格式
+                temperature: 0.01, // 极致低随机性，保证格式100%稳定
+                top_p: 0.01,      // 极致收窄采样，锁定输出格式
                 max_tokens: 3072, // 足够容纳细粒度技术类提示词
                 stream: false,
                 stop: null
             })
         });
 
-        // 处理API响应状态
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
             return res.status(response.status).json({ 
@@ -155,7 +148,6 @@ module.exports = async (req, res) => {
 
         const data = await response.json();
 
-        // 验证API响应格式
         if (!data || !data.choices || !data.choices[0] || !data.choices[0].message) {
             return res.status(500).json({ 
                 error: "Invalid API response format", 
@@ -165,25 +157,32 @@ module.exports = async (req, res) => {
             });
         }
 
-        // 最终输出处理（格式校准+清理）
+        // 最终输出处理（极致格式校准+清理）
         let finalOutput = data.choices[0].message.content
             // 基础冗余文本清理
             .replace(/优化后的提示词：/g, '') 
             .replace(/角色：.*\n/g, '') 
             .replace(/[#*`]/g, '') 
             .replace(/输出格式要求：.*\n/g, '') 
-            // 空行精准清理（核心）
-            .replace(/\n{3,}/g, '\n\n') // 压缩3个以上空行为2个
+            // 空行极致清理（核心解决行间距大的问题）
+            .replace(/\n{2,}/g, '\n') // 所有连续2个以上空行替换为1个
             .replace(/^\n+|\n+$/g, '') // 删除开头/结尾空行
-            .replace(/\n{2,}(?=###)/g, '\n') // 模块标题前仅保留1个空行
-            // 空格精准清理（核心）
+            .replace(/\n(?=###)/g, '') // 模块标题前仅保留0个空行（角色后直接跟模块）
+            .replace(/(\d\.\s*)\n+/g, '$1') // 列表项编号后禁止换行
+            // 空格极致清理（核心）
             .replace(/^\s+/gm, '') // 删除每行开头所有空格
             .replace(/：\s+/g, '：') // 冒号后删除多余空格
             .replace(/\s+$/, '') // 删除行尾多余空格
-            .replace(/\s{4,}/g, ' ') // 压缩4个以上空格为1个
+            .replace(/\s{2,}/g, ' ') // 压缩2个以上空格为1个
+            // 强制补充角色描述（兜底）
             .trim();
 
-        // 返回最终结果
+        // 兜底：如果没有角色描述，自动添加
+        if (!finalOutput.startsWith('你是一位')) {
+            const rolePrefix = `你是一位资深网站设计插件开发专家，专注于自动优化网站设计的插件研发。`;
+            finalOutput = rolePrefix + '\n' + finalOutput;
+        }
+
         res.status(200).json({ 
             success: true,
             code: 200,
@@ -192,14 +191,12 @@ module.exports = async (req, res) => {
         });
 
     } catch (err) {
-        // 异常处理（区分开发/生产环境）
         const errorResponse = {
             error: "Internal server error",
             code: 500,
             message: err.message || "Unknown error occurred"
         };
 
-        // 开发环境下返回栈信息，方便调试
         if (process.env.NODE_ENV === 'development') {
             errorResponse.stack = err.stack;
         }
@@ -207,5 +204,3 @@ module.exports = async (req, res) => {
         res.status(500).json(errorResponse);
     }
 };
-
-

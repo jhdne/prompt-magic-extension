@@ -62,7 +62,7 @@ module.exports = async (req, res) => {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'meta/llama-3.1-405b-instruct',
+        model: 'qwen/qwen2.5-coder-32b-instruct',
         messages: [
           {
             role: 'system',
@@ -103,4 +103,5 @@ module.exports = async (req, res) => {
     console.error('Server Error:', err);
     return res.status(500).json({ error: 'Internal server error' });
   }
+
 };

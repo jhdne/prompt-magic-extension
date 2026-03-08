@@ -1,11 +1,13 @@
 const fetch = require('node-fetch');
 
+// 配置信息
 const SUPABASE_URL = 'https://mtuuwxcqvlcfgchaffee.supabase.co';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
-const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY; // 确保在环境变量中设置了此项
+// 注意：为了排查问题，你可以临时检查这个 key 是否正确加载
+const NVIDIA_API_KEY = "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";
 
 module.exports = async (req, res) => {
-  // --- 跨域与基础验证 ---
+  // --- 1. 处理跨域与请求验证 ---
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -17,23 +19,20 @@ module.exports = async (req, res) => {
   if (!originalText) return res.status(400).json({ error: 'No text provided' });
 
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Login required.' });
-  }
+  if (!authHeader) return res.status(401).json({ error: 'No authorization header' });
 
   try {
-    // 1. 验证 Supabase 用户身份
+    // --- 2. Supabase 用户验证 ---
     const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
       headers: {
         'apikey': SUPABASE_SERVICE_KEY,
         'Authorization': authHeader
       }
     });
-
-    if (!userRes.ok) return res.status(401).json({ error: 'Invalid token.' });
+    if (!userRes.ok) return res.status(401).json({ error: 'Invalid User' });
     const user = await userRes.json();
 
-    // 2. 查询积分 (使用 rpc 或直接查询)
+    // --- 3. 获取积分 ---
     const creditsRes = await fetch(
       `${SUPABASE_URL}/rest/v1/user_credits?user_id=eq.${user.id}&select=credits`,
       {
@@ -43,72 +42,68 @@ module.exports = async (req, res) => {
         }
       }
     );
-
     const creditsData = await creditsRes.json();
-    const currentCredits = Array.isArray(creditsData) && creditsData.length > 0
-      ? creditsData[0].credits : 0;
+    const currentCredits = (creditsData && creditsData[0]) ? creditsData[0].credits : 0;
 
-    if (currentCredits <= 0) {
-      return res.status(402).json({ error: 'Insufficient credits.' });
-    }
+    if (currentCredits <= 0) return res.status(402).json({ error: 'Insufficient credits' });
 
-    // 3. 调用 NVIDIA API (替换点)
-    // 根据你的模型替换需求，设置相应的 model, temp, top_p 等
-    const nvidiaResponse = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
-      method: 'POST',
+    // --- 4. 调用 NVIDIA API (Llama-4-Maverick) ---
+    const nvidiaPayload = {
+      model: "meta/llama-4-maverick-17b-128e-instruct",
+      messages: [
+        {
+          role: "system",
+          content: "你是一个提示词专家。请将用户输入的原始命令重构为高质量 Prompt。要求：1.赋予专业角色；2.增加结构化指令（背景、任务、限制、输出格式）；3.提升表达专业度。直接返回优化后的结果，禁止任何开场白。"
+        },
+        { role: "user", content: originalText }
+      ],
+      max_tokens: 512,
+      temperature: 1.0,
+      top_p: 1.0,
+      stream: false
+    };
+
+    const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${NVIDIA_API_KEY}`,
-        'Content-Type': 'application/json'
+        "Authorization": `Bearer ${NVIDIA_API_KEY}`,
+        "Accept": "application/json",
+        "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        model: "qwen/qwen2.5-coder-32b-instruct",
-        messages: [
-          {
-            role: 'system',
-            content: '你是一个提示词专家。请将用户输入的原始命令重构为高质量 Prompt。要求：1.赋予专业角色；2.增加结构化指令（背景、任务、限制、输出格式）；3.提升表达专业度。直接返回优化后的结果，禁止任何开场白或解释。'
-          },
-          { role: 'user', content: originalText }
-        ],
-        temperature: 0.2, // 参考你提供的 Python 片段
-        top_p: 0.7,       // 参考你提供的 Python 片段
-        max_tokens: 1024
-      })
+      body: JSON.stringify(nvidiaPayload)
     });
 
-    const aiData = await nvidiaResponse.json();
-    
-    // 检查 NVIDIA 响应错误
-    if (!nvidiaResponse.ok || !aiData.choices) {
-      console.error('NVIDIA Error:', aiData);
-      return res.status(500).json({ error: 'AI Service Error', details: aiData.error });
+    const data = await response.json();
+
+    // 错误检查
+    if (!response.ok || !data.choices || data.choices.length === 0) {
+      console.error("NVIDIA API Detail Error:", data);
+      return res.status(500).json({ error: "AI Model Response Error", details: data });
     }
 
-    const optimizedResult = aiData.choices[0].message.content;
+    const optimizedText = data.choices[0].message.content;
 
-    // 4. 扣除积分 (建议在生产环境使用 RPC 以保证原子性，这里沿用你的 PATCH 逻辑)
-    const newCredits = currentCredits - 1;
-    await fetch(
-      `${SUPABASE_URL}/rest/v1/user_credits?user_id=eq.${user.id}`,
-      {
-        method: 'PATCH',
-        headers: {
-          'apikey': SUPABASE_SERVICE_KEY,
-          'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=minimal'
-        },
-        body: JSON.stringify({ credits: newCredits })
-      }
-    );
+    // --- 5. 扣除积分 ---
+    const nextCredits = currentCredits - 1;
+    await fetch(`${SUPABASE_URL}/rest/v1/user_credits?user_id=eq.${user.id}`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ credits: nextCredits })
+    });
 
-    // 5. 返回结果
+    // --- 6. 返回结果 ---
     return res.status(200).json({
-      optimizedText: optimizedResult,
-      creditsRemaining: newCredits
+      optimizedText: optimizedText,
+      creditsRemaining: nextCredits
     });
 
   } catch (err) {
-    console.error('Server Error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    console.error('Runtime Error:', err);
+    return res.status(500).json({ error: 'Server internal error', message: err.message });
   }
 };
